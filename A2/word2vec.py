@@ -18,7 +18,7 @@ def sigmoid(x):
     """
 
     ### YOUR CODE HERE (~1 Line)
-
+    s = 1 / (1 + np.exp(-x))
     ### END YOUR CODE
 
     return s
@@ -60,7 +60,12 @@ def naiveSoftmaxLossAndGradient(
     """
 
     ### YOUR CODE HERE (~6-8 Lines)
-
+    soft = np.exp(outsideVectors @ centerWordVec)
+    soft /= np.sum(soft)
+    loss = -np.log(soft[outsideWordIdx])
+    soft[outsideWordIdx] -= 1
+    gradCenterVec = outsideVectors.T @ soft
+    gradOutsideVecs = np.outer(soft, centerWordVec)
     ### Please use the provided softmax function (imported earlier in this file)
     ### This numerically stable implementation helps you avoid issues pertaining
     ### to integer overflow. 
@@ -111,7 +116,16 @@ def negSamplingLossAndGradient(
     ### YOUR CODE HERE (~10 Lines)
 
     ### Please use your implementation of sigmoid in here.
-
+    negative = outsideVectors[indices, :]
+    negative[1:] *= -1
+    score = sigmoid(negative @ centerWordVec)
+    loss = np.sum(-np.log(score))
+    dout = score - 1 # (K+1, )
+    gradCenterVec = negative.T @ dout # (length, )
+    grad_before = np.outer(dout, centerWordVec) # (K+1, length)
+    grad_before[1:] *= -1
+    gradOutsideVecs = np.zeros_like(outsideVectors)
+    np.add.at(gradOutsideVecs, indices, grad_before)
     ### END YOUR CODE
 
     return loss, gradCenterVec, gradOutsideVecs
@@ -157,7 +171,14 @@ def skipgram(currentCenterWord, windowSize, outsideWords, word2Ind,
     gradOutsideVectors = np.zeros(outsideVectors.shape)
 
     ### YOUR CODE HERE (~8 Lines)
-
+    word_idx = word2Ind[currentCenterWord]
+    centerWordvec = centerWordVectors[word_idx]
+    for outsideWord in outsideWords :
+        outsideword_idx = word2Ind[outsideWord]
+        loss_o, gradCen_o, gradOut_o = word2vecLossAndGradient(centerWordvec, outsideword_idx, outsideVectors, dataset)
+        loss += loss_o
+        gradCenterVecs[word_idx] += gradCen_o
+        gradOutsideVectors += gradOut_o
     ### END YOUR CODE
     
     return loss, gradCenterVecs, gradOutsideVectors
