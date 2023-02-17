@@ -32,7 +32,9 @@ class PartialParse(object):
         ### Note: The root token should be represented with the string "ROOT"
         ### Note: If you need to use the sentence object to initialize anything, make sure to not directly 
         ###       reference the sentence object.  That is, remember to NOT modify the sentence object. 
-
+        self.buffer = sentence.copy()
+        self.stack = ['ROOT']
+        self.dependencies = list()
 
         ### END YOUR CODE
 
@@ -51,6 +53,16 @@ class PartialParse(object):
         ###         1. Shift
         ###         2. Left Arc
         ###         3. Right Arc
+        if transition == 'S' :
+            self.stack.append(self.buffer.pop(0))
+        elif transition == 'LA' :
+            from_word = self.stack[-1]
+            to_word = self.stack.pop(-2)
+            self.dependencies.append((from_word, to_word))
+        else :
+            from_word = self.stack[-2]
+            to_word = self.stack.pop(-1)
+            self.dependencies.append((from_word, to_word))
 
 
         ### END YOUR CODE
@@ -102,8 +114,16 @@ def minibatch_parse(sentences, model, batch_size):
     ###             contains references to the same objects. Thus, you should NOT use the `del` operator
     ###             to remove objects from the `unfinished_parses` list. This will free the underlying memory that
     ###             is being accessed by `partial_parses` and may cause your code to crash.
-
-
+    partial_parses = [PartialParse(sentence) for sentence in sentences]
+    unfinishied_parses = partial_parses[:]
+    while len(unfinishied_parses) > 0 :
+        minibatch = unfinishied_parses[:batch_size]
+        transitions = model.predict(minibatch)
+        for partial_parse, transition in zip(minibatch, transitions) :
+            trans = partial_parse.parse_step(transition)
+            if not partial_parse.buffer and len(partial_parse.stack)==1 :
+                unfinishied_parses.remove(partial_parse)
+    dependencies = [parse.dependencies for parse in partial_parses]
     ### END YOUR CODE
 
     return dependencies
