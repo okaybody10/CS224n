@@ -4,3 +4,4 @@
 **/data
 *.pkl
 A4/sanity_check_en_es_data
+model.*
