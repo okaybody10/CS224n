@@ -64,6 +64,7 @@ Don't change above here; write your code below
 # note: models should moved to device defined on line 34.
 
 if args.variant == 'vanilla':
+    model = model.GPT(mconf).to(device)
     pass # [part c] Make some model here
 elif args.variant == 'perceiver':
     # set mconf.perceiver, and mconf.bottleneck_dim parameters appropriately.
@@ -128,8 +129,20 @@ elif args.function == 'finetune':
     #         writer=writer
     #     You can use the args.reading_params_path flag to switch between the
     #     number of epochs for each case.
-     
-    raise NotImplementedError
+    if args.reading_params_path is not None :
+        model.load_state_dict(torch.load(args.reading_params_path))
+    train_config = trainer.TrainerConfig(max_epochs= 75, batch_size = 256, learning_rate = args.finetune_lr, 
+                                         lr_decay= True, warmup_tokens= 512*20, 
+                                         final_token= 200*len(pretrain_dataset) * block_size,
+                                         ckpt_path= args.writing_params_path,
+                                         num_workers = 4,
+                                         writer = writer)
+    text = open(args.finetune_corpus_path, 'r').read()
+    train_dataset = dataset.NameDataset(pretrain_dataset, text)
+    trainer = trainer.Trainer(model, train_dataset, None, train_config)
+    trainer.train()
+    torch.save(model.state_dict(), args.writing_params_path)
+    # raise NotImplementedError
 elif args.function == 'evaluate':
     assert args.outputs_path is not None
     assert args.reading_params_path is not None
